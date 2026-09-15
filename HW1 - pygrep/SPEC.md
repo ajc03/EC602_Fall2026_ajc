@@ -65,12 +65,14 @@ The order the options appear on the command line has no effect. `-c -l` and `-l 
 
 `-i` and `-v` can both be used with `-n`,`-c`, and `-l`. For example, if `-i` is used with `-l` all files with matches are printed regardless of case (if `red` is searched, files with `Red` or `red` will be printed).
 
+Each option does not need to be typed with a seperate `-`. Example: `-iv` is valid and equivalent to `-i -v` and `-v -i`.
+
 ### 1.5 The pattern
 
 - A line is a match if the pattern matches anywhere in it.
 - The line content passed to the matcher MUST NOT include the trailing newline. Therefore `$` matches at end of line and `pygrep a$ ` behaves as expected.
 - If the pattern is not a valid regular expression, this is an error (§4.3).
-- An empty pattern is NOT valid and WILL result in an error.
+- An empty pattern is valid.
 
 ### 1.6 Usage errors
 
@@ -198,11 +200,10 @@ Files MUST be processed strictly in command-line order, and lines within a file 
 
 ### 3.1 Empty pattern
 
-An empty pattern is valid. It matches at position 0 of every line, so every
-line is selected — including empty lines.
+An empty pattern is valid. It matches at position 0 of every line, so every line is selected (including empty lines).
 
 ```
-$ pygrep "" a.txt          $ pygrep -c "" a.txt        $ pygrep -vc "" a.txt
+$ pygrep "" a.txt          $ pygrep -c "" a.txt        $ pygrep -v -c "" a.txt
 alpha                      4                           0
 beta                                                   # exit 1
 Alpha
@@ -210,8 +211,7 @@ gamma
 # exit 0
 ```
 
-With `-v`, an empty pattern selects nothing, so standard output is empty (or
-`0` under `-c`) and the exit status is 1.
+With `-v`, an empty pattern selects nothing, so standard output is empty (or `0` under `-c`).
 
 ### 3.2 Empty file
 
@@ -221,100 +221,43 @@ A zero-byte file contains zero lines. Nothing is selected from it.
 - `-c`: the count line, with count `0`
 - `-l`: nothing
 
-An empty file is not an error. If it is the only file, the exit status is 1.
+An empty file is not an error. 
 
 ```
 $ pygrep -c anything empty.txt
 0
-# exit 1
 ```
 
 **A file containing only `\n` is different**: it contains one line, which is
 empty. `pygrep -c "" onlynewline.txt` prints `1`.
 
-### 3.3 Last line with no trailing newline
+### 3.3 Last line with no newline
 
-The final line of such a file is a real line and is searched normally. Its
-content is everything after the last `\n`, or the whole file if there is none.
-
-If that line is selected and printed, `pygrep` **terminates it with `\n`
-anyway.** Output is always newline-terminated (§2). This matches GNU `grep`,
-verified with `od -c`: given `nonl.txt` containing the 17 bytes
-`no newline at end`, `grep newline nonl.txt` emits 18 bytes, ending `d \n`.
-
-```
-$ pygrep newline nonl.txt | od -c | tail -2
-0000020   d  \n
-0000022
-
-$ pygrep -c newline nonl.txt
-1
-```
+The final line of such a file is a real line and is searched normally. Its content is everything after the last `\n`, or the whole file if there is none.
 
 A zero-byte file is not treated as having a final empty line (§3.2).
 
 ### 3.4 File that does not exist
 
-`pygrep` writes one error line to standard error (§4.1), produces no standard
-output for that file, and continues with the remaining files. The final exit
-status is 2 (§5).
+`pygrep` writes one error line to standard error (§4.1), produces no standard output for that file, and continues with the remaining files.
 
 ### 3.5 Directory given as a file
 
-**[Decision]** A directory operand is an error, exactly like a missing file: an
-error line on standard error, no output for that operand, processing continues,
-final exit status 2.
-
-GNU `grep` behaves this way by default (`grep: adir: Is a directory`), but has
-`-d`/`--directories` and `-r` to change it. `pygrep` has no such option and
-never recurses. This keeps the tool a pure file-to-lines filter; recursion
-belongs to the shell or to `find`.
+A directory operand is an error, exactly like a missing file: an error line on standard error, no output for that operand, processing continues.
 
 ### 3.6 File that exists but cannot be opened
 
-Treated exactly as §3.4: error line, continue, exit 2. The distinct cases
-(permission denied, is a directory, no such file) differ only in the message
-text (§4.1).
+Treated exactly as §3.4: error line, continue, exit 2.
 
-### 3.7 No file operands
+### 3.7 No files at all
 
-`pygrep` reads standard input. See §4.4 for how it is named and §5 for the
-exit status. This is not an error, even if standard input is an interactive
-terminal — in that case `pygrep` waits for input, as `grep` does.
-
-### 3.8 No arguments at all
-
-A usage error (§1.6): usage message on standard error, exit 2. `pygrep` MUST
-NOT read standard input in this case.
-
-### 3.9 Pattern that looks like an option
-
-The first argument that is not an option is the pattern, so `pygrep -x file`
-is an unrecognized-option usage error, not a search for `-x`. Use `--`:
-`pygrep -- -x file`.
-
-### 3.10 Text encoding and line splitting
-
-**[Decision]** Input is decoded as UTF-8 with `errors="surrogateescape"`, and
-output is encoded back the same way. Bytes that are not valid UTF-8 therefore
-survive a round trip unchanged rather than raising or being replaced.
-
-Lines are split on the single byte `\n` only. A `\r` is ordinary line content:
-a CRLF file yields lines ending in `\r`, so `pygrep 'end$'` will not match a
-line that reads `end\r`. `\r` alone is not a line separator.
-
-**[Decision]** `pygrep` performs no binary-file detection. GNU `grep` prints
-`Binary file X matches` and suppresses the content; `pygrep` always prints the
-matching line. The rule "every selected line is printed" holds without
-exception, which is far easier to test.
+A usage error (§1.6): usage message on standard error, exit 2. `pygrep` MUST NOT read standard input in this case.
 
 ---
 
 ## 4. Standard error
 
-Standard error receives diagnostics only. It MUST never receive matching lines,
-counts or filenames-as-results. Nothing at all is written to standard error on
-a successful run, including a run that finds no matches.
+Standard error receives diagnostics only. It MUST never receive matching lines, counts or filenames-as-results. Nothing at all is written to standard error on a successful run, including a run that finds no matches.
 
 Every diagnostic line is terminated by `\n`.
 
@@ -326,8 +269,7 @@ Format:
 pygrep: FILE: MESSAGE
 ```
 
-`FILE` is the operand exactly as given (§2.2). `MESSAGE` is the system error
-description. The three required messages:
+`FILE` is the operand. `MESSAGE` is the system error description. The three required messages:
 
 | Condition | Line |
 | --- | --- |
@@ -335,9 +277,7 @@ description. The three required messages:
 | Path is a directory | `pygrep: adir: Is a directory` |
 | Path not readable | `pygrep: secret.txt: Permission denied` |
 
-Any other `OSError` uses that error's own description in the same three-field
-shape. One line per failing operand. `pygrep` MUST continue to the next operand
-after writing it.
+Any other `OSError` uses that error's own description in the same three-field shape. One line per failing operand. `pygrep` MUST continue to the next operand after writing it.
 
 ### 4.2 Usage errors
 
@@ -348,8 +288,7 @@ usage: pygrep [-i] [-v] [-n] [-c] [-l] PATTERN [FILE]...
 pygrep: error: MESSAGE
 ```
 
-where `MESSAGE` names the problem, for example `the following arguments are
-required: PATTERN` or `unrecognized arguments: -z`.
+where `MESSAGE` names the problem, for example `the following arguments are required: PATTERN` or `unrecognized arguments: -z`.
 
 ### 4.3 Invalid pattern
 
@@ -357,30 +296,7 @@ required: PATTERN` or `unrecognized arguments: -z`.
 pygrep: invalid pattern: DETAIL
 ```
 
-`DETAIL` is the message from `re.error`, for example `nothing to repeat at
-position 0` for the pattern `*`. This is detected before any file is opened,
-so no file is read and standard output stays empty. Exit status 2.
-
-### 4.4 Standard input
-
-When `pygrep` reads standard input — because there were no `FILE` operands, or
-because an operand was `-` — the name used in prefixes (§2.2), in `-l` output
-(§2.5) and in error messages (§4.1) is the literal string:
-
-```
-(standard input)
-```
-
-This matches GNU `grep`. With zero operands no prefix is printed at all, so the
-name is visible only under `-l`:
-
-```
-$ printf 'beta\n' | pygrep -l beta
-(standard input)
-
-$ printf 'beta\n' | pygrep -n beta
-1:beta
-```
+`DETAIL` is the message from `re.error`, for example `nothing to repeat at position 0` for the pattern `*`. This is detected before any file is opened, so no file is read and standard output stays empty.
 
 ---
 
@@ -396,25 +312,19 @@ Exactly one status is returned:
 
 The rules, in order of precedence:
 
-1. If any usage error (§1.6) or invalid-pattern error (§4.3) occurred, the
-   status is **2**.
-2. Otherwise, if any file operand produced a per-file error (§4.1), the status
-   is **2** — **even if other files produced matches, and even if output was
-   written to standard output.** Verified against GNU `grep`:
-   `grep beta a.txt nope.txt` prints `a.txt:beta` and exits 2.
-3. Otherwise, if the total number of selected lines across all files is
-   greater than zero, the status is **0**.
+1. If any usage error or invalid-pattern error occurred, the status is **2**.
+2. Otherwise, if any file operand produced a per-file error, the status is **2** — **even if other files produced matches, and even if output was
+   written to standard output.** Verified against GNU `grep`: `grep beta a.txt nope.txt` prints `a.txt:beta` and exits 2.
+3. Otherwise, if the total number of selected lines across all files is greater than zero, the status is **0**.
 4. Otherwise the status is **1**.
 
 Notes that follow from these rules:
 
 - Under `-v`, "selected" means "non-matching", so `pygrep -v "" a.txt` exits 1.
-- Under `-c`, printing `0` still means nothing was selected: `pygrep -c zzz
-  a.txt` prints `0` and exits **1**.
+- Under `-c`, printing `0` still means nothing was selected: `pygrep -c zzz a.txt` prints `0` and exits **1**.
 - Under `-l`, the status is 0 if and only if at least one filename was printed.
 - `-h`/`--help` exits **0**.
-- An empty file, or a file with no matches, is not an error and never by itself
-  causes status 2.
+- An empty file, or a file with no matches, is not an error and never by itself causes status 2.
 
 ---
 
