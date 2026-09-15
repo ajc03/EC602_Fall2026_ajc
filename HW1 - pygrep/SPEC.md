@@ -1,13 +1,7 @@
 # pygrep — Specification
 
-Version 1.0
-
 `pygrep` searches text files for lines matching a pattern and writes the
 matching lines to standard output.
-
-This document is normative. Where it disagrees with GNU `grep` 3.11 or with
-`man grep`, this document wins. Every place where a deliberate departure from
-GNU `grep` was made is marked **[Decision]** and states what was chosen and why.
 
 The key words MUST, MUST NOT, SHOULD and MAY are used in the usual sense: MUST
 is required for a conforming implementation, SHOULD is a recommendation that
@@ -42,78 +36,41 @@ usage error (§1.6).
 
 | Option | Long form | Meaning |
 | --- | --- | --- |
-| `-i` | `--ignore-case` | Match without regard to case. |
-| `-v` | `--invert-match` | Select the lines that do *not* match. |
+| `-i` | `--ignore-case` | Match regardless of case. |
+| `-v` | `--invert-match` | Select the lines that do *NOT* match. |
 | `-n` | `--line-number` | Prefix each output line with its line number. |
-| `-c` | `--count` | Suppress normal output; print a count of selected lines per file. |
-| `-l` | `--files-with-matches` | Suppress normal output; print the name of each file with at least one selected line. |
+| `-c` | `--count` | Suppress normal output, print a count of selected lines per file. |
+| `-l` | `--files-with-matches` | Suppress normal output, print the name of each file with at least one selected line. |
 | `-h` | `--help` | Print usage to standard output and exit 0. |
 
-Options MAY appear before, after, or interleaved with the operands:
-`pygrep -n beta a.txt`, `pygrep beta -n a.txt` and `pygrep beta a.txt -n` are
-equivalent.
+Options do NOT need to appear in a specific order
 
-Short options MAY be bundled: `-vn` is `-v -n`. Repeating an option has the
-same effect as giving it once.
-
-The argument `--` ends option parsing. Every argument after it is an operand,
-even if it begins with `-`. This is how a pattern such as `-x` is searched for:
-`pygrep -- -x file.txt`.
-
-**[Decision]** GNU `grep` has `-H`/`-h` to force filename prefixes on or off.
-`pygrep` does not: whether the filename is printed is determined solely by the
-number of `FILE` operands (§2.2). `-h` is therefore free to mean `--help`.
-The prefix rule is then a pure function of the command line, which makes it
-easier to test.
+**NOTE:** `pygrep` REQUIRES filename suffixes. `pygrep -n beta a.txt` is valid, but `pygrep -n beta a` is *NOT*.
 
 ### 1.4 How the selecting options combine
 
-Two options change *what* is selected. They compose:
+Two options change *what* is selected:
 
-- `-i` and `-v` are independent and may be combined. `-iv` selects the lines
-  that do not match the pattern case-insensitively.
+- `-i` and `-v` are independent and may be combined. Using both selects the lines that do not match the pattern regardless of letter case.
 
-Three options change *how* the result is reported: normal output, `-c`, `-l`.
-Exactly one reporting mode is in effect. When more than one is requested, the
-mode is chosen by this precedence, **highest first**:
+Three options change *how* the result is reported: normal output, `-c`, `-l`. Exactly one reporting mode is in effect. When more than one is requested, the mode is chosen by this precedence, **highest first**:
 
 1. `-l`
 2. `-c`
 3. normal output
 
-The order the options appear on the command line has no effect. `-c -l` and
-`-l -c` both behave as `-l` alone.
+The order the options appear on the command line has no effect. `-c -l` and `-l -c` both behave as `-l`.
 
-`-n` applies only to normal output. Under `-c` or `-l` it is accepted and
-silently ignored — `-cn` prints exactly what `-c` prints.
+`-n` applies only to normal output. Under `-c` or `-l` it is accepted and ignored — `-n -c` prints exactly what `-c` prints.
 
-This matches GNU `grep` 3.11, verified by experiment:
-
-```
-$ grep -c -l beta a.txt b.txt      $ grep -l -c beta a.txt b.txt
-a.txt                              a.txt
-b.txt                              b.txt
-```
+`-i` and `-v` can both be used with `-n`,`-c`, and `-l`. For example, if `-i` is used with `-l` all files with matches are printed regardless of case (if `red` is searched, files with `Red` or `red` will be printed).
 
 ### 1.5 The pattern
 
-**[Decision]** `PATTERN` is a Python regular expression, as accepted by the
-standard library `re` module, **not** a POSIX basic regular expression.
-
-Rationale: POSIX BRE requires backslashes before `+`, `?`, `{`, `|`, `(` and
-`)`, and reimplementing that dialect on top of `re` is a source of bugs with no
-teaching value. Python's dialect is fully documented elsewhere, which is what a
-specification needs. The practical consequence is that `pygrep 'a\+'` and
-`grep 'a\+'` differ; this is accepted.
-
-- The pattern is an *unanchored search*: a line is a match if the pattern
-  matches anywhere in it. The implementation MUST use `re.search`, not
-  `re.match` or `re.fullmatch`.
-- The line content passed to the matcher MUST NOT include the trailing newline.
-  Therefore `$` matches at end of line and `pygrep 'a$' ` behaves as expected.
-- `-i` is implemented by compiling with `re.IGNORECASE`.
+- A line is a match if the pattern matches anywhere in it.
+- The line content passed to the matcher MUST NOT include the trailing newline. Therefore `$` matches at end of line and `pygrep a$ ` behaves as expected.
 - If the pattern is not a valid regular expression, this is an error (§4.3).
-- An empty pattern is valid and matches every line (§3.1).
+- An empty pattern is NOT valid and WILL result in an error.
 
 ### 1.6 Usage errors
 
@@ -121,20 +78,17 @@ It is a usage error if:
 
 - no arguments are given at all;
 - every argument is an option, so no `PATTERN` operand is present;
-- an unrecognized option is given (for example `-z` or `--colour`).
+- an unrecognized option is given (for example `-z` or `-color`).
 
-In each case `pygrep` MUST write a usage message to standard error (§4.2),
-write nothing to standard output, and exit 2 (§5).
+In each case `pygrep` MUST write a usage message to standard error (§4.2), write nothing to standard output, and exit 2 (§5).
 
-`-h` / `--help` is not an error: the usage message goes to standard **output**
-and the exit status is 0. No search is performed, even if a pattern is present.
+`-h` / `--help` is not an error: the usage message goes to standard **output** and the exit status is 0. No search is performed, even if a pattern is present.
 
 ---
 
 ## 2. Output
 
-All normal output goes to standard output. Every line written to standard
-output MUST be terminated by a single newline (`\n`), including the last one.
+All normal output goes to standard output. Every line written to standard output MUST be terminated by a single newline (`\n`), including the last one.
 
 ### 2.1 Field separator
 
@@ -144,20 +98,13 @@ escaped.
 
 ### 2.2 When the filename is printed
 
-The filename prefix is printed **if and only if two or more `FILE` operands
-were given on the command line.**
+The filename prefix is printed **if and only if two or more `FILE` operands were given on the command line.**
 
-This is decided by the command line alone. It does not matter how many of those
-files existed, how many were readable, or how many produced output. `pygrep p
-a.txt missing.txt` prints a prefix on its matches from `a.txt` even though
-`missing.txt` could not be opened.
+This is decided by the command line alone. It does not matter how many of those files existed, how many were readable, or how many produced output. `pygrep p a.txt missing.txt` prints a prefix on its matches from `a.txt` even though `missing.txt` could not be opened.
 
 With zero or one `FILE` operand, no prefix is printed.
 
-The name printed is the operand string exactly as it was given on the command
-line: no normalization, no absolutization, no symlink resolution. If the
-operand was `./a.txt`, the prefix is `./a.txt`. The one exception is the
-operand `-`, which is printed as `(standard input)`.
+The name printed is the operand string exactly as it was given on the command line. If the operand was `./a.txt`, the prefix is `./a.txt`.
 
 ### 2.3 Normal output
 
@@ -179,13 +126,13 @@ containing `beta\ndelta\n`:
 
 ```
 $ pygrep beta a.txt
-beta
+nbeta
 
 $ pygrep -n beta a.txt
-2:beta
+2:nbeta
 
 $ pygrep beta a.txt b.txt
-a.txt:beta
+a.txt:nbeta
 b.txt:beta
 
 $ pygrep -n beta a.txt b.txt
@@ -195,19 +142,16 @@ b.txt:1:beta
 
 ### 2.4 `-c` output
 
-One output line per file operand, in command-line order, whether or not the
-count is zero.
+One output line per file operand, in command-line order, whether or not the count is zero.
 
 | Options | Format |
 | --- | --- |
 | `-c` | `COUNT` |
 | `-c`, 2+ files | `FILE:COUNT` |
 
-`COUNT` is the number of selected lines in that file, written in decimal with
-no padding and no sign. Under `-v` it is the number of non-matching lines.
+`COUNT` is the number of selected lines in that file, written in decimal with no padding and no sign. Under `-v` it is the number of non-matching lines.
 
-A file that could not be opened (§3.4, §3.5) produces **no** count line at all;
-it produces only the error on standard error. It is not reported as `0`.
+A file that could not be opened (§3.4, §3.5) produces **no** count line at all. It produces only the error on standard error. It is not reported as `0`.
 
 ```
 $ pygrep -c beta a.txt
@@ -217,20 +161,16 @@ $ pygrep -c beta a.txt b.txt
 a.txt:1
 b.txt:1
 
-$ pygrep -cn beta a.txt b.txt        # -n ignored
+$ pygrep -c -n beta a.txt b.txt        # -n ignored
 a.txt:1
 b.txt:1
 ```
 
-Note that `-c` prints `0` for a file with no selected lines, but printing `0`
-does not by itself make the exit status 0. See §5.
+Note that `-c` prints `0` for a file with no selected lines, but printing `0` does not by itself make the exit status 0. See §5.
 
 ### 2.5 `-l` output
 
-One output line per file that has **at least one** selected line, in
-command-line order. The line is the filename alone, with no count, no colon and
-no line content — the rule in §2.2 does not apply here, the name is always
-printed, even for a single file operand.
+One output line per file that has **at least one** selected line, in command-line order. The line is the filename alone, with no count, no colon and no line content — the rule in §2.2 does not apply here, the name is always printed, even for a single file operand.
 
 ```
 $ pygrep -l beta a.txt
@@ -241,20 +181,16 @@ a.txt
 b.txt
 
 $ pygrep -l zzz a.txt b.txt
-                                     # nothing on stdout, exit 1
+                                     # nothing
 ```
 
-A file with zero selected lines produces no output line. A file that could not
-be opened produces no output line.
+A file with zero selected lines produces no output line. A file that could not be opened produces no output line.
 
-The implementation SHOULD stop reading a file as soon as its first line is
-selected, since the rest cannot change the output.
+The implementation SHOULD stop reading a file as soon as its first line is selected, since the rest cannot change the output.
 
 ### 2.6 Ordering and flushing
 
-Files MUST be processed strictly in command-line order, and lines within a file
-in file order. Output MUST NOT be reordered or buffered across files in a way
-that changes the order seen by a consumer.
+Files MUST be processed strictly in command-line order, and lines within a file in file order. Output MUST NOT be reordered or buffered across files in a way that changes the order seen by a users.
 
 ---
 
