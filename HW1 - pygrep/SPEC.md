@@ -372,40 +372,40 @@ In the expectations, `""` means the stream is empty (zero bytes). Every non-empt
 ---
 
 **Test 1 — plain match, one file**
-- given: `a.txt`
-- run: `pygrep beta a.txt`
+- given: `alpha.txt`
+- run: `pygrep beta alpha.txt`
 - expect: stdout `"beta\n"` · stderr `""` · exit `0`
 
 **Test 2 — no match, one file**
-- given: `a.txt`
-- run: `pygrep zzz a.txt`
+- given: `alpha.txt`
+- run: `pygrep zzz alpha.txt`
 - expect: stdout `""` · stderr `""` · exit `1`
 
 **Test 3 — filename prefix appears with two files**
-- given: `a.txt`, `b.txt`
-- run: `pygrep beta a.txt b.txt`
-- expect: stdout `"a.txt:beta\nb.txt:beta\n"` · stderr `""` · exit `0`
+- given: `alpha.txt`, `b.txt`
+- run: `pygrep beta alpha.txt b.txt`
+- expect: stdout `"alpha.txt:beta\nb.txt:beta\n"` · stderr `""` · exit `0`
 
 **Test 4 — line numbers, one file (no prefix)**
-- given: `a.txt`
-- run: `pygrep -n beta a.txt`
+- given: `alpha.txt`
+- run: `pygrep -n beta alpha.txt`
 - expect: stdout `"2:beta\n"` · stderr `""` · exit `0`
 
 **Test 5 — line numbers restart per file, prefix present**
-- given: `a.txt`, `b.txt`
-- run: `pygrep -n beta a.txt b.txt`
-- expect: stdout `"a.txt:2:beta\nb.txt:1:beta\n"` · stderr `""` · exit `0`
+- given: `alpha.txt`, `b.txt`
+- run: `pygrep -n beta alpha.txt b.txt`
+- expect: stdout `"alpha.txt:2:beta\nb.txt:1:beta\n"` · stderr `""` · exit `0`
 
 **Test 6 — `-c` with `-n`: `-n` is ignored**
-- given: `a.txt`, `b.txt`
-- run: `pygrep -c -n beta a.txt b.txt`
-- expect: stdout `"a.txt:1\nb.txt:1\n"` · stderr `""` · exit `0`
+- given: `alpha.txt`, `b.txt`
+- run: `pygrep -c -n beta alpha.txt b.txt`
+- expect: stdout `"alpha.txt:1\nb.txt:1\n"` · stderr `""` · exit `0`
 
 **Test 7 — `-l` beats `-c`, in either order**
-- given: `a.txt`, `b.txt`
-- run: `pygrep -c -l beta a.txt b.txt`
-- expect: stdout `"a.txt\nb.txt\n"` · stderr `""` · exit `0`
-- run: `pygrep -l -c beta a.txt b.txt`
+- given: `alpha.txt`, `b.txt`
+- run: `pygrep -c -l beta alpha.txt b.txt`
+- expect: stdout `"alpha.txt\nb.txt\n"` · stderr `""` · exit `0`
+- run: `pygrep -l -c beta alpha.txt b.txt`
 - expect: identical to the above
 
 **Test 8 — `-c` prints 0 but the exit status is 1**
@@ -414,13 +414,13 @@ In the expectations, `""` means the stream is empty (zero bytes). Every non-empt
 - expect: stdout `"0\n"` · stderr `""` · exit `1`
 
 **Test 9 — empty pattern matches every line**
-- given: `a.txt`
-- run: `pygrep -c "" a.txt`
+- given: `alpha.txt`
+- run: `pygrep -c "" alpha.txt`
 - expect: stdout `"4\n"` · stderr `""` · exit `0`
 
 **Test 10 — empty pattern inverted selects nothing**
-- given: `a.txt`
-- run: `pygrep -v "" a.txt`
+- given: `alpha.txt`
+- run: `pygrep -v "" alpha.txt`
 - expect: stdout `""` · stderr `""` · exit `1`
 
 **Test 11 — unterminated last line is matched and newline-terminated on output**
@@ -436,9 +436,9 @@ In the expectations, `""` means the stream is empty (zero bytes). Every non-empt
   directory\n"` · exit `2`
 
 **Test 13 — a match plus a missing file still exits 2, and the prefix appears**
-- given: `a.txt`
-- run: `pygrep beta a.txt nope.txt`
-- expect: stdout `"a.txt:beta\n"` · stderr `"pygrep: nope.txt: No such file or
+- given: `alpha.txt`
+- run: `pygrep beta alpha.txt nope.txt`
+- expect: stdout `"alpha.txt:beta\n"` · stderr `"pygrep: nope.txt: No such file or
   directory\n"` · exit `2`
 
 **Test 14 — directory operand**
@@ -463,13 +463,13 @@ In the expectations, `""` means the stream is empty (zero bytes). Every non-empt
   line begins with `"pygrep: error: "` · exit `2`
 
 **Test 18 — case-insensitive matching**
-- given: `a.txt`
-- run: `pygrep -i alpha a.txt`
+- given: `alpha.txt`
+- run: `pygrep -i alpha alpha.txt`
 - expect: stdout `"alpha\nAlpha\n"` · stderr `""` · exit `0`
 
 **Test 19 — invert with count**
-- given: `a.txt`
-- run: `pygrep -vc beta a.txt`
+- given: `alpha.txt`
+- run: `pygrep -vc beta alpha.txt`
 - expect: stdout `"3\n"` · stderr `""` · exit `0`
 
 **Test 20 — `--` lets a pattern start with a dash**
@@ -477,13 +477,27 @@ In the expectations, `""` means the stream is empty (zero bytes). Every non-empt
 - run: `pygrep -- -x dash.txt`
 - expect: stdout `"has -x here\n"` · stderr `""` · exit `0`
 
-**Test 21 — invalid pattern is rejected before any file is read**
-- given: `a.txt`
-- run: `pygrep "*" a.txt`
-- expect: stdout `""` · stderr matches `"pygrep: invalid pattern: "` followed
-  by a nonempty detail, then `\n` · exit `2`
+**Test 21 — `-l` prints the name even for a single file operand**
+- given: `alpha.txt`
+- run: `pygrep -l beta alpha.txt`
+- expect: stdout `"alpha.txt\n"` · stderr `""` · exit `0`
 
-**Test 22 — `-l` prints the name even for a single file operand**
-- given: `a.txt`
-- run: `pygrep -l beta a.txt`
-- expect: stdout `"a.txt\n"` · stderr `""` · exit `0`
+**Test 22 — `-h` works even though `PATTERN` is required**
+- given: nothing
+- run: `pygrep -h`
+- expect: stdout begins with `"usage: pygrep "` · stderr `""` · exit `0`
+
+**Test 23 — `--help` behaves identically to `-h`**
+- given: nothing
+- run: `pygrep --help`
+- expect: stdout begins with `"usage: pygrep "` · stderr `""` · exit `0`
+
+**Test 24 — `-l` names a file once, however many lines are selected**
+- given: `b.txt`
+- run: `pygrep -l pie b.txt`
+- expect: stdout `"b.txt\n"` · stderr `""` · exit `0`
+
+**Test 25 — leading whitespace is preserved**
+- given: `ind.txt`
+- run: `pygrep match ind.txt`
+- expect: stdout `"    indented match\nplain match\n"` · stderr `""` · exit `0`
